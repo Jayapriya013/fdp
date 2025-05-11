@@ -443,69 +443,44 @@ print("\nClassification Report:")
 print(classification_report(y_test, y_pred, target_names=target_le.classes_))
 
 """PREDICTION"""
-
 import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score
-import joblib # Import joblib to save model and encoders
+from sklearn.model_selection import train_test_split
 
-# Load dataset
-file_path = '/content/drive/My Drive/flight delay prediction/final_airline_times_HHMM.csv'
-df = pd.read_csv(file_path)
+# Load and preprocess dataset
+df = pd.read_csv("/content/drive/MyDrive/flight delay prediction/final_airline_features_with_strings.csv")
+df.dropna(inplace=True)
 
-# Convert time in HH:MM to total minutes
-def time_to_minutes(t):
-    try:
-        h, m = map(int, str(t).split(':'))
-        return h * 60 + m
-    except:
-        # Added a more informative warning
-        print(f"Warning: Could not parse time '{t}' in time_to_minutes. Returning 0.")
-        return 0
+# Separate features and target
+target_column = 'Delayed'  # Ensure this is the actual column name
+X = df.drop(columns=[target_column])
+y = df[target_column]
 
-for col in ['scheduled_departure_time', 'scheduled_arrival_time']:
-    df[col] = df[col].apply(time_to_minutes)
+# Normalize features
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X)
 
-# Drop columns that cause leakage (these are usually not known at prediction time)
-leak_cols = ['actual_departure_time', 'actual_arrival_time', 'arr_del15']  # if they exist
-df = df.drop(columns=[col for col in leak_cols if col in df.columns])
+# Train/test split
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
 
-# Encode categorical variables (except target)
-# Collect feature encoders here
-feature_encoders = {}
-for col in df.select_dtypes(include='object').columns:
-    if col != 'flight_status':
-        le = LabelEncoder()
-        df[col] = le.fit_transform(df[col])
-        feature_encoders[col] = le # Save the fitted encoder
+# Train Random Forest
+rf = RandomForestClassifier(n_estimators=100, random_state=42)
+rf.fit(X_train, y_train)
 
-# Encode target
-target_le = LabelEncoder()
-df['flight_status'] = target_le.fit_transform(df['flight_status'])  # 'delayed':1, 'on-time':0
+# Predict
+predictions = rf.predict(X_test)
 
-# Split data
-X = df.drop('flight_status', axis=1)
-y = df['flight_status']
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Convert predictions to labels
+output_labels = ['Delayed' if pred == 1 else 'On-Time' for pred in predictions]
 
-# Store the list of feature columns
-trained_features_cols = X_train.columns.tolist()
+# Show first 10 predictions
+for i, label in enumerate(output_labels[:10]):
+    print(f"Flight {i+1}: {label}")
 
-# Train model
-model = RandomForestClassifier(n_estimators=100, random_state=42)
-model.fit(X_train, y_train)
 
-# Predict and evaluate
-y_pred = model.predict(X_test)
-accuracy = accuracy_score(y_test, y_pred)
 
-print("✅ Model Evaluation (Leakage Removed):")
-print("Accuracy:", accuracy)
-print("\nClassification Report:")
-print(classification_report(y_test, y_pred, target_names=target_le.classes_))
+ 
 
 # --- Save model and related objects ---
 model_save_path = '/content/drive/My Drive/flight delay prediction/flight_delay_model.pkl'
