@@ -1,64 +1,43 @@
 import streamlit as st
 import pandas as pd
 import joblib
+import numpy as np
 
-st.title("✈️ Flight Delay Predictor")
+# Load trained model and expected feature order
+model = joblib.load("rf_model.pkl")
+expected_features = joblib.load("rf_features.pkl")  # Must match what you saved during training
 
-# Load encoders and model
-model = joblib.load("flight_delay_model.pkl")
-model_columns = joblib.load("feature_columns.pkl")
-df = pd.read_csv("final_airline_times_HHMM.csv")
+st.title("Flight Delay Prediction")
 
-with st.form("flight_form"):
-    year = st.number_input("Year", value=2025)
-    month = st.number_input("Month", min_value=1, max_value=12, value=5)
-    carrier = st.selectbox("Carrier", sorted(df["carrier"].dropna().unique()))
-    carrier_name = st.selectbox("Carrier Name", sorted(df["carrier_name"].dropna().unique()))
-    airport = st.selectbox("Airport Code", sorted(df["airport"].dropna().unique()))
-    airport_name = st.selectbox("Airport Name", sorted(df["airport_name"].dropna().unique()))
-    arr_flights = st.number_input("Arriving Flights", value=10)
-    carrier_ct = st.number_input("Carrier CT", value=0)
-    weather_ct = st.number_input("Weather CT", value=0)
-    nas_ct = st.number_input("NAS CT", value=0)
-    carrier_delay = st.number_input("Carrier Delay (mins)", value=0)
-    weather_delay = st.number_input("Weather Delay (mins)", value=0)
-    departure_time = st.text_input("Scheduled Departure Time (HH:MM)", "10:00")
-    arrival_time = st.text_input("Scheduled Arrival Time (HH:MM)", "12:00")
+# UI inputs
+feature_input = {
+    "CRS Elapsed Time (mins)": st.number_input("CRS Elapsed Time (mins)", 0),
+    "Distance": st.number_input("Distance (miles)", 0),
+    "NAS CT": st.number_input("NAS CT", 0),
+    "Carrier Delay (mins)": st.number_input("Carrier Delay (mins)", 0),
+    "Weather Delay (mins)": st.number_input("Weather Delay (mins)", 0),
+    "Scheduled Departure Time (HH:MM)": st.text_input("Scheduled Departure Time (HH:MM)", "10:00"),
+    "Scheduled Arrival Time (HH:MM)": st.text_input("Scheduled Arrival Time (HH:MM)", "12:00"),
+    # Add other features here to match training input
+}
 
-    submit = st.form_submit_button("Predict")
+# Optional: Convert HH:MM time to minutes (if model used that)
+def time_to_minutes(tstr):
+    h, m = map(int, tstr.split(":"))
+    return h * 60 + m
 
-# Helper: convert HH:MM to minutes
-def time_to_minutes(t):
+# Include any time conversion if your model used it
+feature_input["Scheduled Departure Time (mins)"] = time_to_minutes(feature_input.pop("Scheduled Departure Time (HH:MM)"))
+feature_input["Scheduled Arrival Time (mins)"] = time_to_minutes(feature_input.pop("Scheduled Arrival Time (HH:MM)"))
+
+# Convert to DataFrame and align with expected features
+input_df = pd.DataFrame([feature_input])
+input_df = input_df.reindex(columns=expected_features, fill_value=0)
+
+if st.button("Predict"):
     try:
-        h, m = map(int, str(t).split(':'))
-        return h * 60 + m
-    except:
-        return 0
-
-if submit:
-    input_data = {
-        "year": [year],
-        "month": [month],
-        "carrier": [carrier],
-        "carrier_name": [carrier_name],
-        "airport": [airport],
-        "airport_name": [airport_name],
-        "arr_flights": [arr_flights],
-        "carrier_ct": [carrier_ct],
-        "weather_ct": [weather_ct],
-        "nas_ct": [nas_ct],
-        "carrier_delay": [carrier_delay],
-        "weather_delay": [weather_delay],
-        "scheduled_departure_time": [time_to_minutes(departure_time)],
-        "scheduled_arrival_time": [time_to_minutes(arrival_time)],
-    }
-
-    df_input = pd.DataFrame(input_data)
-    df_encoded = pd.get_dummies(df_input)
-    df_encoded = df_encoded.reindex(columns=model_columns, fill_value=0)
-
-    try:
-        prediction = model.predict(df_encoded)[0]
-        st.success(f"🛬 Predicted Flight Status: **{prediction}**")
+        prediction = model.predict(input_df)[0]
+        result = "Delayed" if prediction == 1 else "On-Time"
+        st.success(f"Prediction: ✈️ {result}")
     except Exception as e:
-        st.error(f"❌ Prediction failed: {e}")
+        st.error(f"Prediction failed: {str(e)}")
