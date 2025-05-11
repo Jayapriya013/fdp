@@ -8,16 +8,10 @@ target_le = joblib.load('flight_status_encoder.pkl')
 feature_encoders = joblib.load('feature_encoders.pkl')
 trained_features_cols = joblib.load('feature_columns.pkl')
 
-# Load dataset to fetch valid dropdown options
-dataset = pd.read_csv('final_airline_times_HHMM.csv')
+# Load dataset for dropdowns
+df = pd.read_csv('final_airline_times_HHMM.csv')
 
-# Unique values for dropdowns
-carrier_options = sorted(dataset['carrier'].dropna().unique())
-carrier_name_options = sorted(dataset['carrier_name'].dropna().unique())
-airport_options = sorted(dataset['airport'].dropna().unique())
-airport_name_options = sorted(dataset['airport_name'].dropna().unique())
-
-# Helper to convert HH:MM to minutes
+# Function to convert HH:MM to minutes
 def time_to_minutes(t):
     try:
         h, m = map(int, str(t).split(':'))
@@ -26,20 +20,21 @@ def time_to_minutes(t):
         st.warning(f"Invalid time format: {t}. Use HH:MM.")
         return 0
 
-# App UI
 st.title("✈️ Flight Delay Predictor")
 
+# UI: Input Form with Dropdowns
 with st.form("flight_form"):
-    carrier = st.selectbox("Carrier Code", carrier_options)
-    carrier_name = st.selectbox("Carrier Name", carrier_name_options)
-    airport = st.selectbox("Airport Code", airport_options)
-    airport_name = st.selectbox("Airport Name", airport_name_options)
+    carrier = st.selectbox("Carrier Code", sorted(df['carrier'].dropna().unique()))
+    carrier_name = st.selectbox("Carrier Name", sorted(df['carrier_name'].dropna().unique()))
+    airport = st.selectbox("Airport Code", sorted(df['airport'].dropna().unique()))
+    airport_name = st.selectbox("Airport Name", sorted(df['airport_name'].dropna().unique()))
     scheduled_departure_time = st.text_input("Scheduled Departure Time (HH:MM)", "10:00")
     scheduled_arrival_time = st.text_input("Scheduled Arrival Time (HH:MM)", "12:00")
-    
+
     submit = st.form_submit_button("Predict Delay Status")
 
 if submit:
+    # Create input DataFrame with correct columns only
     input_data = {
         'carrier': [carrier],
         'carrier_name': [carrier_name],
@@ -48,28 +43,32 @@ if submit:
         'scheduled_departure_time': [time_to_minutes(scheduled_departure_time)],
         'scheduled_arrival_time': [time_to_minutes(scheduled_arrival_time)],
     }
-    
+
     df_input = pd.DataFrame(input_data)
 
-    # Encode categorical features
+    # Encode categorical values
     for col in df_input.select_dtypes(include='object').columns:
         if col in feature_encoders:
             encoder = feature_encoders[col]
-            df_input[col] = encoder.transform(df_input[col])
-        else:
-            df_input[col] = 0
+            def encode_value(val):
+                val_str = str(val)
+                if val_str in encoder.classes_:
+                    return encoder.transform([val_str])[0]
+                else:
+                    st.warning(f"Unknown value '{val_str}' for '{col}'. Using 0.")
+                    return 0
+            df_input[col] = df_input[col].apply(encode_value)
 
-    # Ensure all required columns are present
+    # Ensure only trained columns are used
     for col in trained_features_cols:
         if col not in df_input.columns:
-            df_input[col] = 0
+            df_input[col] = 0  # add missing columns with 0
 
-    # Reorder columns
-    df_input = df_input[trained_features_cols]
+    df_input = df_input[trained_features_cols]  # reorder and limit
 
     try:
         prediction = model.predict(df_input)
         result = target_le.inverse_transform(prediction)[0]
         st.success(f"🛬 Predicted Flight Status: **{result}**")
     except Exception as e:
-        st.error(f"❌ Prediction failed: {str(e)}")
+        st.error(f"❌ Prediction failed: {e}")
