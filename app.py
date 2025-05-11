@@ -36,10 +36,10 @@ with st.form("flight_form"):
 if submit:
     # Create input DataFrame with correct columns only
     input_data = {
-        'carrier': [carrier],
-        'carrier_name': [carrier_name],
-        'airport': [airport],
+        
         'airport_name': [airport_name],
+        'origin': [origin],
+        'destination': [destination],
         'scheduled_departure_time': [time_to_minutes(scheduled_departure_time)],
         'scheduled_arrival_time': [time_to_minutes(scheduled_arrival_time)],
     }
