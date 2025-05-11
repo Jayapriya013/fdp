@@ -16,13 +16,12 @@ else:
     st.subheader("Enter Flight Info")
 
     input_dict = {
-        "CRS Elapsed Time (mins)": st.number_input("CRS Elapsed Time", 0),
-        "Distance": st.number_input("Distance", 0),
-        "NAS CT": st.number_input("NAS CT", 0),
-        "Carrier Delay (mins)": st.number_input("Carrier Delay", 0),
-        "Weather Delay (mins)": st.number_input("Weather Delay", 0),
-        "Scheduled Departure Time (HH:MM)": st.text_input("Scheduled Departure Time", "10:00"),
-        "Scheduled Arrival Time (HH:MM)": st.text_input("Scheduled Arrival Time", "12:00"),
+        "airport_name(mins)": st.number_input("airport_name", 0),
+        "nas_ct": st.number_input("ct", 0),
+        "carrier_name": st.number_input("carrier_name", 0),
+        "weather_delay (mins)": st.number_input("weather_delay", 0),
+        "scheduled_departure_time (HH:MM)": st.text_input("scheduled_departure_time", "10:00"),
+        "scheduled_arrival_time (HH:MM)": st.text_input("scheduled_arrival_time", "12:00"),
     }
 
     # Convert time fields
@@ -33,8 +32,8 @@ else:
         except:
             return 0
 
-    input_dict["Scheduled Departure Time (mins)"] = time_to_minutes(input_dict.pop("Scheduled Departure Time (HH:MM)"))
-    input_dict["Scheduled Arrival Time (mins)"] = time_to_minutes(input_dict.pop("Scheduled Arrival Time (HH:MM)"))
+    input_dict["scheduled_dparture_time (mins)"] = time_to_minutes(input_dict.pop("scheduled_departure_time (HH:MM)"))
+    input_dict["scheduled_arrival_time (mins)"] = time_to_minutes(input_dict.pop("scheduled_arrival_time (HH:MM)"))
 
     # Create input DataFrame
     input_df = pd.DataFrame([input_dict])
