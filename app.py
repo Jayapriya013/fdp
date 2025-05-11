@@ -8,6 +8,15 @@ target_le = joblib.load('flight_status_encoder.pkl')
 feature_encoders = joblib.load('feature_encoders.pkl')
 trained_features_cols = joblib.load('feature_columns.pkl')
 
+# Load dataset to get dropdown options
+dataset = pd.read_csv('final_airline_times_HHMM.csv')  # Make sure this file is present
+
+# Extract unique values for dropdowns
+carrier_codes = sorted(dataset['carrier'].dropna().unique())
+carrier_names = sorted(dataset['carrier_name'].dropna().unique())
+airport_codes = sorted(dataset['airport'].dropna().unique())
+airport_names = sorted(dataset['airport_name'].dropna().unique())
+
 # Function to convert HH:MM to minutes
 def time_to_minutes(t):
     try:
@@ -21,13 +30,14 @@ st.title("✈️ Flight Delay Predictor")
 
 # Input form
 with st.form("flight_form"):
-    carrier = st.text_input("Carrier Code (e.g., AA)")
-    carrier_name = st.text_input("Carrier Name (e.g., American Airlines)")
-    airport = st.text_input("Airport Code (e.g., JFK)")
-    airport_name = st.text_input("Airport Name (e.g., John F Kennedy International)")
-    scheduled_departure_time = st.text_input("Scheduled Departure Time (HH:MM)")
-    scheduled_arrival_time = st.text_input("Scheduled Arrival Time (HH:MM)")
+    carrier = st.selectbox("Carrier Code (e.g., AA)", carrier_codes)
+    carrier_name = st.selectbox("Carrier Name (e.g., American Airlines)", carrier_names)
+    airport = st.selectbox("Airport Code (e.g., JFK)", airport_codes)
+    airport_name = st.selectbox("Airport Name (e.g., John F Kennedy International)", airport_names)
     
+    scheduled_departure_time = st.time_input("Scheduled Departure Time (HH:MM)")
+    scheduled_arrival_time = st.time_input("Scheduled Arrival Time (HH:MM)")
+
     submit = st.form_submit_button("Predict Delay Status")
 
 if submit:
@@ -37,8 +47,8 @@ if submit:
         'carrier_name': [carrier_name],
         'airport': [airport],
         'airport_name': [airport_name],
-        'scheduled_departure_time': [time_to_minutes(scheduled_departure_time)],
-        'scheduled_arrival_time': [time_to_minutes(scheduled_arrival_time)]
+        'scheduled_departure_time': [time_to_minutes(scheduled_departure_time.strftime("%H:%M"))],
+        'scheduled_arrival_time': [time_to_minutes(scheduled_arrival_time.strftime("%H:%M"))]
     }
 
     df_new = pd.DataFrame(data)
