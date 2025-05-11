@@ -8,13 +8,21 @@ target_le = joblib.load('flight_status_encoder.pkl')
 feature_encoders = joblib.load('feature_encoders.pkl')
 trained_features_cols = joblib.load('feature_columns.pkl')
 
-# Load dataset
+# Load dataset and clean column names
 df = pd.read_csv('final_airline_times_HHMM.csv')
-
-# 🔧 Strip column names to avoid trailing spaces
 df.columns = df.columns.str.strip()
 
-# Function to convert HH:MM to minutes
+# Show column names for debugging
+st.write("✅ Available Columns:", df.columns.tolist())
+
+# Check that required columns exist
+required_cols = ['airport_name', 'carrier', 'weather_delay']
+missing_cols = [col for col in required_cols if col not in df.columns]
+if missing_cols:
+    st.error(f"Required columns missing from CSV: {missing_cols}")
+    st.stop()
+
+# Convert HH:MM time to minutes
 def time_to_minutes(t):
     try:
         h, m = map(int, str(t).split(':'))
@@ -25,28 +33,27 @@ def time_to_minutes(t):
 
 st.title("✈️ Flight Delay Predictor")
 
-# 🧾 Input Form
+# Input form
 with st.form("flight_form"):
     airport_name = st.selectbox("Airport Name", sorted(df['airport_name'].dropna().unique()))
-    origin = st.selectbox("Origin", sorted(df['origin'].dropna().unique()))
-    destination = st.selectbox("Destination", sorted(df['destination'].dropna().unique()))
+    carrier = st.selectbox("Carrier", sorted(df['carrier'].dropna().unique()))
+    weather_delay = st.number_input("Weather Delay (in minutes)", min_value=0, step=1)
     scheduled_departure_time = st.text_input("Scheduled Departure Time (HH:MM)", "10:00")
     scheduled_arrival_time = st.text_input("Scheduled Arrival Time (HH:MM)", "12:00")
     submit = st.form_submit_button("Predict Delay Status")
 
 if submit:
-    # Build input DataFrame
     input_data = {
         'airport_name': [airport_name],
-        'origin': [origin],
-        'destination': [destination],
+        'carrier': [carrier],
+        'weather_delay': [weather_delay],
         'scheduled_departure_time': [time_to_minutes(scheduled_departure_time)],
         'scheduled_arrival_time': [time_to_minutes(scheduled_arrival_time)],
     }
 
     df_input = pd.DataFrame(input_data)
 
-    # Encode categorical columns
+    # Encode categorical features
     for col in df_input.select_dtypes(include='object').columns:
         if col in feature_encoders:
             encoder = feature_encoders[col]
@@ -59,11 +66,10 @@ if submit:
                     return 0
             df_input[col] = df_input[col].apply(encode_value)
 
-    # Match model training structure
+    # Add any missing columns with zero and reorder
     for col in trained_features_cols:
         if col not in df_input.columns:
             df_input[col] = 0
-
     df_input = df_input[trained_features_cols]
 
     try:
