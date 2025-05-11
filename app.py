@@ -24,10 +24,9 @@ st.title("✈️ Flight Delay Predictor")
 
 # UI: Input Form with Dropdowns
 with st.form("flight_form"):
-    carrier = st.selectbox("Carrier Code", sorted(df['carrier'].dropna().unique()))
-    carrier_name = st.selectbox("Carrier Name", sorted(df['carrier_name'].dropna().unique()))
-    airport = st.selectbox("Airport Code", sorted(df['airport'].dropna().unique()))
     airport_name = st.selectbox("Airport Name", sorted(df['airport_name'].dropna().unique()))
+    origin = st.selectbox("origin", sorted(df['origin'].dropna().unique()))
+    destination = st.selectbox("destination ", sorted(df['destination '].dropna().unique()))
     scheduled_departure_time = st.text_input("Scheduled Departure Time (HH:MM)", "10:00")
     scheduled_arrival_time = st.text_input("Scheduled Arrival Time (HH:MM)", "12:00")
 
