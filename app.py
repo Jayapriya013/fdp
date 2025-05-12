@@ -1,45 +1,57 @@
-# app.py
 import streamlit as st
 import pandas as pd
-import joblib
-import os
+import pickle
+from sklearn.preprocessing import LabelEncoder
+import datetime
 
-st.title("✈️ Flight Delay Predictor")
+# Load the trained model
+model = pickle.load(open('model.pkl', 'rb'))
 
-# Load model
-if not os.path.exists("rf_model.pkl") or not os.path.exists("rf_features.pkl"):
-    st.error("❌ Model files not found. Run `predict_with_dataset.py` first.")
-else:
-    model = joblib.load("rf_model.pkl")
-    expected_features = joblib.load("rf_features.pkl")
+# Load and preprocess the dataset
+df = pd.read_csv('Data/Processed_data15.csv')
 
-    st.subheader("Enter Flight Info")
+# Label encoding setup
+le_carrier = LabelEncoder()
+df['carrier'] = le_carrier.fit_transform(df['carrier'])
 
-    input_dict = {
-        "airport_name(mins)": st.number_input("airport_name", 0),
-        "nas_ct": st.number_input("ct", 0),
-        "carrier_name": st.number_input("carrier_name", 0),
-        "weather_delay (mins)": st.number_input("weather_delay", 0),
-        "scheduled_departure_time (HH:MM)": st.text_input("scheduled_departure_time", "10:00"),
-        "scheduled_arrival_time (HH:MM)": st.text_input("scheduled_arrival_time", "12:00"),
-    }
+le_origin = LabelEncoder()
+df['origin'] = le_origin.fit_transform(df['origin'])
 
-    # Convert time fields
-    def time_to_minutes(tstr):
-        try:
-            h, m = map(int, tstr.split(":"))
-            return h * 60 + m
-        except:
-            return 0
+# Streamlit UI
+st.title("✈️ Flight Delay Prediction App")
 
-    input_dict["scheduled_dparture_time (mins)"] = time_to_minutes(input_dict.pop("scheduled_departure_time (HH:MM)"))
-    input_dict["scheduled_arrival_time (mins)"] = time_to_minutes(input_dict.pop("scheduled_arrival_time (HH:MM)"))
+# Input fields
+year = st.selectbox("Select Year", sorted(df['year'].unique()))
+carrier = st.selectbox("Select Carrier", le_carrier.classes_)
+airport_name = st.selectbox("Select Airport Name", le_origin.classes_)
+scheduled_departure = st.time_input("Scheduled Departure Time (HH:MM)", value=datetime.time(8, 0))
+actual_arrival = st.time_input("Actual Arrival Time (HH:MM)", value=datetime.time(10, 0))
 
-    # Create input DataFrame
-    input_df = pd.DataFrame([input_dict])
-    input_df = input_df.reindex(columns=expected_features, fill_value=0)
+# Predict button
+if st.button("Predict Delay"):
 
-    if st.button("Predict"):
-        pred = model.predict(input_df)[0]
-        result = "✈️ Delayed" if pred == 1 else "✅ On-Time"
-        st.success(f"Prediction: **{result}**")
+    try:
+        # Convert time to minutes from midnight
+        sched_dep_minutes = scheduled_departure.hour * 60 + scheduled_departure.minute
+        actual_arr_minutes = actual_arrival.hour * 60 + actual_arrival.minute
+
+        # Prepare DataFrame with these new features (adjust based on model training)
+        input_data = pd.DataFrame([[
+            year,
+            le_carrier.transform([carrier])[0],
+            le_origin.transform([airport_name])[0],
+            sched_dep_minutes,
+            actual_arr_minutes
+        ]], columns=['year', 'carrier', 'origin', 'sched_dep', 'arr_time'])
+
+        # Predict
+        prediction = model.predict(input_data)[0]
+
+        if prediction == 1:
+            st.error("🚨 The flight is likely to be **Delayed**.")
+        else:
+            st.success("✅ The flight is likely to be **On Time**.")
+
+    except Exception as e:
+        st.warning(f"Prediction failed: {e}")
+
