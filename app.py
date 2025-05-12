@@ -8,7 +8,7 @@ import datetime
 model = pickle.load(open('model.pkl', 'rb'))
 
 # Load and preprocess the dataset
-df = pd.read_csv('Data/Processed_data15.csv')
+df = pd.read_csv('/content/drive/My Drive/flight delay prediction/final_airline_times_HHMM.csv')
 
 # Label encoding setup
 le_carrier = LabelEncoder()
