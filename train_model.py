@@ -4,7 +4,7 @@ from sklearn.ensemble import RandomForestClassifier
 import pickle
 
 # Load and preprocess your dataset
-df = pd.read_csv('data/sample_input.csv')
+df = pd.read_csv('final_airline_times_HHMM.csv')
 
 # Example preprocessing
 X = df.drop(['Delay'], axis=1)
